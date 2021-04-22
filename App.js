@@ -5,7 +5,7 @@ import { BarCodeScanner } from 'expo-barcode-scanner';
 
 export default function App() {
     const [hasPermission, setHasPermission] = useState(null);
-    const [scanned, setScanned] = useState(false);
+    const [scanned, setScanned] = useState(null);
 
       useEffect(() => {
               (async () => {
@@ -19,7 +19,7 @@ export default function App() {
         var firstCharacter = data[0];
         var i;
         var currentState = "none"
-        var results = {}
+        var results = [] 
         var currentResultIndex = 0;
         var currentStateIndex = 0;
         for(i = 1; i < data.length; i++)
@@ -48,6 +48,15 @@ export default function App() {
                         currentState = "serial";
                         currentStateIndex = -1;
                         break;
+                    case "25": //GLN Extension
+                        if(data[i+2] == 4) // GLN extension AI is three digits: 254 
+                        {
+                            currentState = "gln";
+                            currentStateIndex = -1;
+                            break;
+                        }
+                        currentState = "unknown";
+                        break;
                     default:
                         currentState = "unknown";
                 }
@@ -55,7 +64,8 @@ export default function App() {
                 if(results[currentResultIndex] == null)
                 {
                     results[currentResultIndex] = {};
-                    results[currentResultIndex].ai = currentState;
+                    results[currentResultIndex].ai = AI;
+                    results[currentResultIndex].key = currentState;
                 }
                 i++; // Purge the next character as well so that the AI is not included in the data
                 continue;
@@ -65,7 +75,7 @@ export default function App() {
                 console.log("Unknown AI.");
                 continue;
             }
-            if(currentState === "gtin" || currentState === "expirationdate")
+            if(currentState === "gtin" || currentState === "expirationdate") // Finite number fields
             {
                 currentStateIndex--; //Otherwise, decrement the current state counter, and concat the current character to the result
                 if(results[currentResultIndex].value == null) //Initialize the result index value
@@ -81,7 +91,7 @@ export default function App() {
                 }
                 continue;
             }
-            if(currentState === "serial" || currentState === "lot")
+            if(currentState === "serial" || currentState === "lot") //FNC1 terminated fields
             {
                 if(currentCharacter === firstCharacter) //If we have reached the end marking character, then return the state to none
                 {
@@ -97,15 +107,18 @@ export default function App() {
                 continue;
             }
         }
+        console.log(results);
+        return results;
     }
     const handleBarCodeScanned = ({ type, data }) => 
     {
         if(type === BarCodeScanner.Constants.BarCodeType.datamatrix)
         {
-            alert("scanned: " + type + " : " + data)
             console.log(data);
-            setScanned(true);
-            readData(data);
+            var results = readData(data);
+            console.log(results);
+            setScanned(results);
+
         }
     }
 
@@ -118,18 +131,38 @@ export default function App() {
         return <Text>Permission denied</Text>;
     }
 
+    const getFormattedDateFromGS1Date = (preformattedDate) =>
+    {
+        var dateObj = new Date(2000 + parseInt(preformattedDate.substring(0,2)), parseInt(preformattedDate.substring(2,4)) - 1, parseInt(preformattedDate.substring(4,6)))
+        return dateObj.toDateString();
+    }
+
 
 
   return (
     <View style={styles.container}>
-        {!scanned &&
-        <BarCodeScanner
-          onBarCodeScanned = {scanned? undefined : handleBarCodeScanned}
-          style = {StyleSheet.absoluteFillObject}
-          />
-            }
-        {scanned && 
-            <Button title = {'Tap to Scan Again'} onPress={()=>setScanned(false)}/>
+        {scanned == null &&
+            <BarCodeScanner
+                onBarCodeScanned = {scanned != null ? undefined : handleBarCodeScanned}
+                style = {StyleSheet.absoluteFillObject}
+            />
+        }
+        {scanned != null && 
+            <View>
+                {scanned.find(x=>x.key == "unknown") != null && 
+                    <Text>This barcode had one or more GS1 AI that were not correctly identified.</Text>
+                }
+                {scanned.find(x=>x.key == "unknown") == null &&
+                    <View>
+                        <Text>GTIN: {scanned.find(x => x.key == "gtin").value != null && scanned.find(x => x.key == "gtin").value}</Text>
+                        <Text>Serial Number: {scanned.find(x => x.key == "serial").value != null && scanned.find(x => x.key == "serial").value}</Text>
+                        <Text>Expiration Date: {scanned.find(x => x.key == "expirationdate").value != null && scanned.find(x=>x.key=="expirationdate").value}</Text>
+                        <Text>Lot Number: {scanned.find(x => x.key == "lot").value != null && scanned.find(x=>x.key=="lot").value}</Text>
+                        <Text>Formatted Date: {getFormattedDateFromGS1Date(scanned.find(x=>x.key=="expirationdate").value)}</Text>
+                    </View>
+                }
+                <Button title = {'Tap to Scan Again'} onPress={()=>setScanned(null)}/>
+            </View>
         }
     </View>
   );
