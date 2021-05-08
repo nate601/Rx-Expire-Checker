@@ -1,19 +1,21 @@
 import { StatusBar } from 'expo-status-bar';
 import React, {useState, useEffect} from 'react';
-import { StyleSheet, Text, View} from 'react-native';
+import { StyleSheet, Text, View, Vibration} from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
-import { ThemeProvider, Button, TableView, InfoRow} from 'react-native-ios-kit';
+import { ThemeProvider, DefaultTheme, Button, TableView, InfoRow} from 'react-native-ios-kit';
 
 export default function App() {
     const [hasPermission, setHasPermission] = useState(null);
     const [scanned, setScanned] = useState(null);
+    const [cooldown, setCooldown] = useState(false);
+    const [viewSettingsScreen, setViewSettingsScreen] = useState(false);
 
-      useEffect(() => {
-              (async () => {
-                        const { status } = await BarCodeScanner.requestPermissionsAsync();
-                        setHasPermission(status === 'granted');
-                      })();
-            }, []);
+    useEffect(() => {
+          (async () => {
+                    const { status } = await BarCodeScanner.requestPermissionsAsync();
+                    setHasPermission(status === 'granted');
+                  })();
+        }, []);
 
     const readData = (data) =>
     {
@@ -54,6 +56,7 @@ export default function App() {
                         {
                             currentState = "gln";
                             currentStateIndex = -1;
+                            i++; // Since GLN AI is three digits, we must purge the next character so that the AI is not included in the data
                             break;
                         }
                         currentState = "unknown";
@@ -109,17 +112,19 @@ export default function App() {
             }
         }
         console.log(results);
+        Vibration.vibrate();
         return results;
     }
     const handleBarCodeScanned = ({ type, data }) =>
     {
         if(type === BarCodeScanner.Constants.BarCodeType.datamatrix)
         {
+            setCooldown(true);
+            setTimeout( ()=> setCooldown(false), 1500 );
             console.log(data);
             var results = readData(data);
             console.log(results);
             setScanned(results);
-
         }
     }
 
@@ -132,10 +137,25 @@ export default function App() {
         return <Text>Permission denied</Text>;
     }
 
+    const getDateObjFromGS1Date = (preformattedDate) =>
+    {
+        var dateObj = new Date(2000 + parseInt(preformattedDate.substring(0,2)), parseInt(preformattedDate.substring(2,4)) - 1, parseInt(preformattedDate.substring(4,6)))
+        return dateObj;
+    }
     const getFormattedDateFromGS1Date = (preformattedDate) =>
     {
         var dateObj = new Date(2000 + parseInt(preformattedDate.substring(0,2)), parseInt(preformattedDate.substring(2,4)) - 1, parseInt(preformattedDate.substring(4,6)))
         return dateObj.toDateString();
+    }
+    const isToBePulled = (date) =>
+    {
+        var currentDate = new Date();
+        var dateToBePulled = currentDate.setMonth(currentDate.getMonth + 3);
+        if(date < dateToBePulled)
+        {
+            return true;
+        }
+        return false;
     }
 
 
@@ -146,7 +166,7 @@ export default function App() {
             {true &&
             <View style={styles.camera}>
                 <BarCodeScanner
-                    onBarCodeScanned = {handleBarCodeScanned}
+                    onBarCodeScanned = {cooldown ? undefined : handleBarCodeScanned}
                     style = {StyleSheet.absoluteFillObject}
                 />
             </View>
@@ -171,6 +191,7 @@ export default function App() {
                                 <InfoRow
                                     title={"Expiration Date"}
                                     info={getFormattedDateFromGS1Date(scanned.find(x=>x.key=="expirationdate").value)}
+                                    theme={{barColor: isToBePulled(getDateObjFromGS1Date(scanned.find(x=>x.key=="expirationdate").value)) ? "white" : "red"}}
                                 />
                                 <InfoRow
                                     title={"Lot Number"}
@@ -186,6 +207,11 @@ export default function App() {
             }
                 {scanned == null && <View><Text>Waiting for scan</Text></View>}
             </View>
+            {viewSettingsScreen &&
+                <View style={styles.settings}>
+
+                </View>
+            }
         </View>
       </ThemeProvider>
   );
@@ -203,5 +229,9 @@ const styles = StyleSheet.create({
   info:{
     flex:1,
     alignItems: 'stretch'
-  }
-});
+  
+},
+    settings:{
+        flex:1
+    }}
+);
