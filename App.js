@@ -3,6 +3,8 @@ import React, {useState, useEffect} from 'react';
 import { StyleSheet, Text, View, Vibration} from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import { ThemeProvider, DefaultTheme, Button, TableView, InfoRow} from 'react-native-ios-kit';
+import WaitingScreen from './Waiting.js';
+import GTINTable from './GTINTable.js';
 
 export default function App() {
     const [hasPermission, setHasPermission] = useState(null);
@@ -123,6 +125,17 @@ export default function App() {
             setTimeout( ()=> setCooldown(false), 1500 );
             console.log(data);
             var results = readData(data);
+            results.getAISafe = (name, arr) => {
+                var retVal = arr.find(x=>x.key === name).value;
+                if(retVal = null)
+                {
+                    return "none"
+                }
+                else
+                {
+                    return retVal;
+                }
+            }
             console.log(results);
             setScanned(results);
         }
@@ -157,6 +170,24 @@ export default function App() {
         }
         return false;
     }
+    const getAISafe = (aiName) =>
+    {
+        if(scanned != null)
+        {
+            console.log(scanned);
+            var retVal = scanned.find(x=>x.key === aiName);
+            console.log(retVal)
+            if(retVal == null)
+            {
+                return "No value"
+            }
+            else
+            {
+                return retVal.value;
+            }
+        }
+        return "Awaiting scan!"
+    }
 
 
 
@@ -179,25 +210,13 @@ export default function App() {
                     }
                     {scanned.find(x=>x.key == "unknown") == null &&
                         <View>
-                            <TableView header={"GS1"}>
-                                <InfoRow
-                                    title={"GTIN"}
-                                    info={scanned.find(x => x.key == "gtin").value != null && scanned.find(x => x.key == "gtin").value}
-                                />
-                                <InfoRow
-                                    title={"Serial Number"}
-                                    info={scanned.find(x => x.key == "serial").value != null && scanned.find(x => x.key == "serial").value}
-                                />
-                                <InfoRow
-                                    title={"Expiration Date"}
-                                    info={getFormattedDateFromGS1Date(scanned.find(x=>x.key=="expirationdate").value)}
-                                    theme={{barColor: isToBePulled(getDateObjFromGS1Date(scanned.find(x=>x.key=="expirationdate").value)) ? "white" : "red"}}
-                                />
-                                <InfoRow
-                                    title={"Lot Number"}
-                                    info={scanned.find(x => x.key == "lot").value != null && scanned.find(x => x.key == "lot").value}
-                                />
-                            </TableView>
+                            <GTINTable
+                                GTIN={getAISafe("gtin")}
+                                serial={getAISafe("serial")}
+                                expirationFormatted={getFormattedDateFromGS1Date(getAISafe("expirationdate"))}
+                                isToBePulled={isToBePulled(getAISafe("expirationdate"))}
+                                lot={getAISafe("lot")}
+                            />
 
                             <Button onPress={()=>setScanned(null)} inline rounded centered><Text>Press to clear scan</Text></Button>
 
@@ -205,7 +224,7 @@ export default function App() {
                     }
                 </View>
             }
-                {scanned == null && <View><Text>Waiting for scan</Text></View>}
+            {scanned == null && <WaitingScreen/>}
             </View>
             {viewSettingsScreen &&
                 <View style={styles.settings}>
@@ -229,7 +248,6 @@ const styles = StyleSheet.create({
   info:{
     flex:1,
     alignItems: 'stretch'
-  
 },
     settings:{
         flex:1
