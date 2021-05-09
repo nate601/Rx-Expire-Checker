@@ -218,10 +218,10 @@ export default function App() {
                                 lot={getAISafe("lot")}
                             />
 
-                            <Button onPress={()=>setScanned(null)} inline rounded centered><Text>Press to clear scan</Text></Button>
 
                         </View>
                     }
+                    <Button onPress={()=>setScanned(null)} inline rounded centered><Text>Press to clear scan</Text></Button>
                 </View>
             }
             {scanned == null && <WaitingScreen/>}
