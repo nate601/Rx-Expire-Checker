@@ -18,7 +18,7 @@ class GTINTable extends React.Component
                 <InfoRow
                     title={"Expiration Date"}
                     info={this.props.expirationFormatted}
-                    theme={{barColor: this.props.isToBePulled ? "white" : "red"}}
+                    theme={{barColor: this.props.isToBePulled ? "red" : "white"}}
                 />
                 <InfoRow
                     title={"Lot Number"}
