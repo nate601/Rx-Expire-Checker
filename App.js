@@ -162,8 +162,15 @@ export default function App() {
     }
     const isToBePulled = (date) =>
     {
-        var currentDate = new Date();
-        var dateToBePulled = currentDate.setMonth(currentDate.getMonth + 3);
+        let currentDate = new Date();
+        //let dateToBePulled = currentDate.setMonth(currentDate.getMonth + 3);
+        let dateToBePulled = new Date(currentDate.setMonth(currentDate.getMonth()+3));
+        currentDate = new Date();
+        console.log(new Date());
+        console.log("current date: " + currentDate);
+        console.log("date of drug: " + getDateObjFromGS1Date(date));
+        console.log("date to be pulled: " + dateToBePulled);
+        console.log("is date to be pulled greater than date of drug: " +(date < dateToBePulled));
         if(date < dateToBePulled)
         {
             return true;
